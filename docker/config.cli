@@ -1,0 +1,57 @@
+embed-server --std-out=echo
+
+module add --name=oracle.jdbc --resources=/tmp/ojdbc11.jar --dependencies=javax.api,javax.transaction.api
+
+/subsystem=datasources/jdbc-driver=oracleXA:add(driver-name=oracleXA,driver-module-name=oracle.jdbc,driver-xa-datasource-class-name=oracle.jdbc.xa.client.OracleXADataSource, driver-class-name=oracle.jdbc.OracleDriver)
+
+xa-data-source add \
+        --name=oracleXA1 \
+        --driver-name=oracleXA \
+        --jndi-name=java:/jdbc/oracleXA1 \
+        --user-name="${env.ORACLEXA1_USER}" \
+        --password="${env.ORACLEXA1_PASSWORD}" \
+        --xa-datasource-class=oracle.jdbc.xa.client.OracleXADataSource \
+        --use-ccm=false \
+        --min-pool-size=1 \
+        --max-pool-size=20 \
+        --flush-strategy=FailingConnectionOnly \
+        --same-rm-override=false \
+        --check-valid-connection-sql="SELECT 1 FROM DUAL" \
+        --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.oracle.OracleValidConnectionChecker \
+        --validate-on-match=false \
+        --background-validation=true \
+        --background-validation-millis=10000 \
+        --stale-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.oracle.OracleStaleConnectionChecker \
+        --exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.oracle.OracleExceptionSorter \
+        --share-prepared-statements=false \
+        --enabled=true \
+        --track-statements=true \
+        --xa-datasource-properties={"URL"=>"${env.ORACLEXA1_URL}"}
+
+/extension=org.wildfly.extension.messaging-activemq:add
+/subsystem=messaging-activemq:add
+
+/subsystem=messaging-activemq/remote-connector=netty-remote-throughput:add(socket-binding=messaging-remote-throughput)
+/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=messaging-remote-throughput:add(host="${env.ARTEMIS_HOST}", port="${env.ARTEMIS_PORT}")
+/subsystem=messaging-activemq/pooled-connection-factory=remote-artemis:add(transaction=xa,user="${env.ARTEMIS_USERNAME}",password="${env.ARTEMIS_PASSWORD}",entries=[java:/RemoteJmsXA,java:jboss/RemoteJmsXA],connectors=[netty-remote-throughput])
+
+# disable file logging
+/subsystem=logging/root-logger=ROOT:remove-handler(name=FILE)
+/subsystem=logging/periodic-rotating-file-handler=FILE:remove
+
+# mdb settings
+/subsystem=ejb3:write-attribute(name=default-resource-adapter-name, value=remote-artemis)
+/subsystem=ejb3:write-attribute(name=default-mdb-instance-pool, value=mdb-strict-max-pool)
+/subsystem=ejb3/strict-max-bean-instance-pool=slsb-strict-max-pool/:undefine-attribute(name=derive-size)
+/subsystem=ejb3/strict-max-bean-instance-pool=slsb-strict-max-pool/:write-attribute(name=max-pool-size,value=20)
+/subsystem=ejb3/strict-max-bean-instance-pool=mdb-strict-max-pool/:undefine-attribute(name=derive-size)
+/subsystem=ejb3/strict-max-bean-instance-pool=mdb-strict-max-pool/:write-attribute(name=max-pool-size,value=20)
+/subsystem=ejb3/thread-pool=default/:write-attribute(name=max-threads,value=25)
+# Configure default connection factory in the EE subsystem
+/subsystem=ee/service=default-bindings/:write-attribute(name="jms-connection-factory", value="java:jboss/RemoteJmsXA")
+
+/subsystem=messaging-activemq:write-attribute(name=global-client-thread-pool-max-size,value=128)
+
+/subsystem=transactions:write-attribute(name=node-identifier,value="${env.JBOSS_TX_ID}")
+
+stop-embedded-server

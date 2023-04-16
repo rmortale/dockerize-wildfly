@@ -1,0 +1,34 @@
+version: '3'
+services:
+  database:
+    image: gvenzl/oracle-xe:21
+    environment:
+      ORACLE_PASSWORD: Secret1
+    ports:
+      - 1521:1521
+  eap:
+    build: .
+    depends_on:
+      - database
+      - artemis
+    environment:
+      DISABLE_EMBEDDED_JMS_BROKER: true
+      ORACLEXA1_USER: SYSTEM
+      ORACLEXA1_PASSWORD: Secret1
+      ORACLEXA1_URL: jdbc:oracle:thin:@//database:1521/XE
+      ARTEMIS_HOST: artemis
+      ARTEMIS_PORT: 61616
+      ARTEMIS_USERNAME: quarkus
+      ARTEMIS_PASSWORD: quarkus
+      JBOSS_TX_ID: 42
+    ports:
+      - 8080:8080
+
+  artemis:
+    image: vromero/activemq-artemis
+    ports:
+      - "8161:8161"
+      - "61616:61616"
+    environment:
+      ARTEMIS_USERNAME: quarkus
+      ARTEMIS_PASSWORD: quarkus
