@@ -1,4 +1,4 @@
-FROM quay.io/wildfly/wildfly:26.1.2.Final-jdk11
+FROM quay.io/wildfly/wildfly:27.0.1.Final-jdk11
 
 ADD ojdbc11.jar /tmp/
 ADD config.cli /tmp/

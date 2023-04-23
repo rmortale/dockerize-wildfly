@@ -1,23 +1,23 @@
 version: '3.9'
 services:
-  database:
+  database27:
     image: gvenzl/oracle-xe:21
     environment:
       ORACLE_PASSWORD: Secret1
     ports:
       - 1521:1521
-  eap:
+  eap27:
     build:
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile27
     depends_on:
-      - database
-      - artemis
+      - database27
+      - artemis27
     environment:
       DISABLE_EMBEDDED_JMS_BROKER: true
       ORACLEXA1_USER: SYSTEM
       ORACLEXA1_PASSWORD: Secret1
-      ORACLEXA1_URL: jdbc:oracle:thin:@//database:1521/XE
-      ARTEMIS_HOST: artemis
+      ORACLEXA1_URL: jdbc:oracle:thin:@//database27:1521/XE
+      ARTEMIS_HOST: artemis27
       ARTEMIS_PORT: 61616
       ARTEMIS_USERNAME: quarkus
       ARTEMIS_PASSWORD: quarkus
@@ -25,7 +25,7 @@ services:
     ports:
       - 8080:8080
 
-  artemis:
+  artemis27:
     image: vromero/activemq-artemis
     ports:
       - "8161:8161"
